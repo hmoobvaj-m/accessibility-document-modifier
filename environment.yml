@@ -1,0 +1,20 @@
+name: accessibility-pdf-modifier
+
+channels:
+  - conda-forge
+
+dependencies:
+  - python 3.13
+  - openjdk=21
+  - gradle
+  - pip
+  - "ruff>=0.14,<1"
+  - "pydantic>=2.12,<3"
+  - "pytest>=0,<10"
+
+  - pip:
+      # - -e ./packages/python/modifier-engine
+      # - -e ./apps/cli
+      - pydantic>=2.12,<3
+      - pytest>=9,<10
+      - ruff>=0.14,<1
