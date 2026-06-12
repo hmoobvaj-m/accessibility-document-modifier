@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "modifier-engine"
+version = "0.1.0"
+description = "Core orchestration for accessible PDF inspection and modification"
+requires-python = ">=3.13,<3.14"
+license = "Apache-2.0"
+
+dependencies = [
+    "pydantic>=2.12,<3",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
