@@ -71,11 +71,12 @@ __pycache__/
 wheels/
 pip-wheel-metadata/
 
-# Java + Gradle
-.gradle/
+# Java
 *.class
 *.jar
-!gradle/wrapper/gradle-wrapper.jar
+
+# Maven
+target/
 
 # IDE + edit files
 .vscode/
