@@ -1,0 +1,166 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="
+             http://maven.apache.org/POM/4.0.0
+             https://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>io.github.hmoobvajm.accessibility</groupId>
+    <artifactId>pdf-inspector</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+    <packaging>jar</packaging>
+
+    <name>PDF Inspector</name>
+    <description>
+        Apache PDFBox command-line application for accessible PDF inspection
+    </description>
+
+    <licenses>
+        <license>
+            <name>Apache License, Version 2.0</name>
+            <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+
+    <properties>
+        <!-- Compile against the Java 21 language level and public API. -->
+        <maven.compiler.release>21</maven.compiler.release>
+
+        <project.build.sourceEncoding>
+            UTF-8
+        </project.build.sourceEncoding>
+        <project.reporting.outputEncoding>
+            UTF-8
+        </project.reporting.outputEncoding>
+
+        <!-- Runtime dependencies -->
+        <pdfbox.version>3.0.7</pdfbox.version>
+        <jackson.version>2.22.0</jackson.version>
+
+        <!-- Test dependencies -->
+        <junit.version>6.1.0</junit.version>
+
+        <!-- Build plugins -->
+        <maven.compiler.plugin.version>
+            3.15.0
+        </maven.compiler.plugin.version>
+        <maven.surefire.plugin.version>
+            3.5.5
+        </maven.surefire.plugin.version>
+        <maven.shade.plugin.version>
+            3.6.2
+        </maven.shade.plugin.version>
+    </properties>
+
+    <dependencies>
+        <!-- PDF parsing and document inspection -->
+        <dependency>
+            <groupId>org.apache.pdfbox</groupId>
+            <artifactId>pdfbox</artifactId>
+            <version>${pdfbox.version}</version>
+        </dependency>
+
+        <!-- Inspection-result JSON serialization -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>${jackson.version}</version>
+        </dependency>
+
+        <!-- Unit testing -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <!-- Produces target/pdf-inspector.jar -->
+        <finalName>pdf-inspector</finalName>
+
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>
+                    ${maven.compiler.plugin.version}
+                </version>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>
+                    ${maven.surefire.plugin.version}
+                </version>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>
+                    ${maven.shade.plugin.version}
+                </version>
+
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+
+                        <configuration>
+                            <!--
+                            Keep the original dependency declarations instead
+                            of generating dependency-reduced-pom.xml.
+                            -->
+                            <createDependencyReducedPom>
+                                false
+                            </createDependencyReducedPom>
+
+                            <!--
+                            Signatures from dependency JARs are no longer valid
+                            after their contents are combined into the CLI JAR.
+                            -->
+                            <filters>
+                                <filter>
+                                    <artifact>*:*</artifact>
+
+                                    <excludes>
+                                        <exclude>
+                                            META-INF/*.SF
+                                        </exclude>
+                                        <exclude>
+                                            META-INF/*.DSA
+                                        </exclude>
+                                        <exclude>
+                                            META-INF/*.RSA
+                                        </exclude>
+                                    </excludes>
+                                </filter>
+                            </filters>
+
+                            <transformers>
+                                <!-- Preserve Java service-provider resources. -->
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+
+                                <!-- Make the shaded JAR executable. -->
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                    <mainClass>
+                                        io.github.hmoobvajm.pdfinspector.PDFInspectorCLI
+                                    </mainClass>
+                                </transformer>
+                            </transformers>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>
