@@ -105,7 +105,7 @@ class FigureExtractorTest {
 
         IllegalStateException exception = assertThrows(IllegalStateException.class, () -> extractor.extract(List.of(figure)));
 
-        assertEquals("Figure structure tag spans multiple pages and can not be represented by FigureInspection", exception.getMessage());
+        assertEquals("Figure structure tag spans multiple pages and cannot be represented by FigureInspection", exception.getMessage());
     }
 
     @Test

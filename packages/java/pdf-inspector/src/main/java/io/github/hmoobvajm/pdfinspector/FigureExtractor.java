@@ -42,7 +42,7 @@ public final class FigureExtractor {
         Set<Integer> descendantPageNumbers = new LinkedHashSet<>();
         collectPageNumbers(figureTag.children(), descendantPageNumbers);
 
-        if(descendantPageNumbers.size() > 1) { throw new IllegalStateException("Figure structure tag spans multiple pages and can not be represented by FigureInspection"); }
+        if(descendantPageNumbers.size() > 1) { throw new IllegalStateException("Figure structure tag spans multiple pages and cannot be represented by FigureInspection"); }
         if(descendantPageNumbers.size() == 1) { return descendantPageNumbers.iterator().next(); }
         if(inheritedPageNumber != null) { return inheritedPageNumber; }
 
