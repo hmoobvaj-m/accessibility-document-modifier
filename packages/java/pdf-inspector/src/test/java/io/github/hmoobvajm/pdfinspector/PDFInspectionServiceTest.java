@@ -1,23 +1,30 @@
 package io.github.hmoobvajm.pdfinspector;
+import io.github.hmoobvajm.pdfinspector.model.InspectionResult;
+import io.github.hmoobvajm.pdfinspector.model.StructureTag;
 
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
-import io.github.hmoobvajm.pdfinspector.model.InspectionResult;
 import java.io.IOException;
+
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
+
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+
 import java.util.HexFormat;
+
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.common.PDRectangle;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
+import org.apache.pdfbox.pdmodel.documentinterchange.logicalstructure.PDStructureElement;
+import org.apache.pdfbox.pdmodel.documentinterchange.logicalstructure.PDStructureTreeRoot;
 
 class PDFInspectionServiceTest {
 
@@ -167,5 +174,51 @@ class PDFInspectionServiceTest {
         } catch (NoSuchAlgorithmException exception) {
             throw new IllegalStateException("SHA-256 is unavailable in the test runtime", exception);
         }
+    }
+
+    @Test
+    void extractsLogicalStructureTree() throws IOException {
+        Path pdfPath = tempDirectory.resolve("structured-document.pdf");
+
+        try (PDDocument document = new PDDocument()) {
+            PDPage page = new PDPage(PDRectangle.LETTER);
+            document.addPage(page);
+
+            PDStructureTreeRoot root = new PDStructureTreeRoot();
+            document.getDocumentCatalog().setStructureTreeRoot(root);
+
+            PDStructureElement section = new PDStructureElement("Sect", root);
+            section.setTitle("Introduction");
+
+            PDStructureElement paragraph = new PDStructureElement("P", section);
+            paragraph.setLanguage("en-US");
+            paragraph.setActualText("Introduction paragraph");
+            paragraph.setPage(page);
+
+            root.appendKid(section);
+            section.appendKid(paragraph);
+
+            document.save(pdfPath.toFile());
+        }
+
+        InspectionResult result = inspectionService.inspect(pdfPath);
+        StructureTag section = result.structureTree().getFirst();
+        StructureTag paragraph = section.children().getFirst();
+
+        assertAll(
+                () -> assertEquals(1, result.structureTree().size()),
+                () -> assertEquals("Sect", section.structureType()),
+                () -> assertEquals("Introduction", section.title()),
+                () -> assertEquals(1, section.children().size()),
+                () -> assertEquals("P", paragraph.structureType()),
+                () -> assertEquals("en-US", paragraph.language()),
+                () -> assertEquals("Introduction paragraph", paragraph.actualText()),
+                () -> assertEquals(1, paragraph.pageNumber())
+        );
+    }
+
+    @Test
+    void rejectsNullStructureTreeExtractor() {
+        assertThrows(NullPointerException.class, () -> new PDFInspectionService(null));
     }
 }

@@ -3,6 +3,7 @@ package io.github.hmoobvajm.pdfinspector;
 import io.github.hmoobvajm.pdfinspector.model.InspectionResult;
 import io.github.hmoobvajm.pdfinspector.model.PageInspection;
 import io.github.hmoobvajm.pdfinspector.model.SourceDocument;
+import io.github.hmoobvajm.pdfinspector.model.StructureTag;
 import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -27,6 +28,16 @@ public final class PDFInspectionService {
 
     private static final int HASH_BUFFER_SIZE = 8_192;
 
+    private final StructureTreeExtractor structureTreeExtractor;
+
+    public PDFInspectionService() {
+        this(new StructureTreeExtractor());
+    }
+
+    PDFInspectionService(StructureTreeExtractor structureTreeExtractor) {
+        this.structureTreeExtractor = Objects.requireNonNull(structureTreeExtractor, "structureTreeExtractor must not be null");
+    }
+
     /**
      * Inspects one PDF file.
      *
@@ -44,6 +55,7 @@ public final class PDFInspectionService {
 
         try (PDDocument document = Loader.loadPDF(normalizedPath.toFile())) {
             List<PageInspection> pages = inspectPages(document);
+            List<StructureTag> structureTree = structureTreeExtractor.extract(document);
 
             return new InspectionResult(
                     InspectionResult.SUPPORTED_SCHEMA_VERSION,
@@ -51,7 +63,7 @@ public final class PDFInspectionService {
                     pages.size(),
                     InspectionResult.SUPPORTED_COORDINATE_SYSTEM,
                     pages,
-                    List.of(),
+                    structureTree,
                     List.of()
             );
         }
@@ -99,7 +111,9 @@ public final class PDFInspectionService {
 
         try {
             return new PageInspection(pageNumber, widthPoints, heightPoints, List.of());
-        } catch (IllegalArgumentException exception) {
+        } 
+        
+        catch (IllegalArgumentException exception) {
             throw new IOException("Page " + pageNumber + " contains invalid page geometry", exception);
         }
     }
@@ -122,7 +136,9 @@ public final class PDFInspectionService {
     private static MessageDigest createSha256Digest() {
         try {
             return MessageDigest.getInstance("SHA-256");
-        } catch (NoSuchAlgorithmException exception) {
+        } 
+        
+        catch (NoSuchAlgorithmException exception) {
             throw new IllegalStateException("SHA-256 is not available in the current Java runtime", exception);
         }
     }
