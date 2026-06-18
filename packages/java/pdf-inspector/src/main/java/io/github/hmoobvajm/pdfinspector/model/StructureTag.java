@@ -25,7 +25,7 @@ public record StructureTag(String structureType, String standardStructureType, S
         Objects.requireNonNull(children, "children must not be null");
 
         for(StructureTag child : children) {
-            Objects.requireNonNull(child, "cihldren munst not contain null elements");
+            Objects.requireNonNull(child, "cihldren must not contain null elements");
         }
 
         children = List.copyOf(children);
