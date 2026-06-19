@@ -1,9 +1,11 @@
 package io.github.hmoobvajm.pdfinspector;
 
+import io.github.hmoobvajm.pdfinspector.model.FigureInspection;
 import io.github.hmoobvajm.pdfinspector.model.InspectionResult;
 import io.github.hmoobvajm.pdfinspector.model.PageInspection;
 import io.github.hmoobvajm.pdfinspector.model.SourceDocument;
 import io.github.hmoobvajm.pdfinspector.model.StructureTag;
+
 import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -16,6 +18,9 @@ import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Objects;
+import java.util.Map;
+import java.util.stream.Collectors;
+
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
@@ -29,13 +34,19 @@ public final class PDFInspectionService {
     private static final int HASH_BUFFER_SIZE = 8_192;
 
     private final StructureTreeExtractor structureTreeExtractor;
+    private final FigureExtractor figureExtractor;
 
     public PDFInspectionService() {
-        this(new StructureTreeExtractor());
+        this(new StructureTreeExtractor(), new FigureExtractor());
     }
 
     PDFInspectionService(StructureTreeExtractor structureTreeExtractor) {
+        this(structureTreeExtractor, new FigureExtractor());
+    }
+
+    PDFInspectionService(StructureTreeExtractor structureTreeExtractor, FigureExtractor figureExtractor) {
         this.structureTreeExtractor = Objects.requireNonNull(structureTreeExtractor, "structureTreeExtractor must not be null");
+        this.figureExtractor = Objects.requireNonNull(figureExtractor, "figureExtractor must not be null");
     }
 
     /**
@@ -54,8 +65,9 @@ public final class PDFInspectionService {
         SourceDocument sourceDocument = inspectSourceDocument(normalizedPath);
 
         try (PDDocument document = Loader.loadPDF(normalizedPath.toFile())) {
-            List<PageInspection> pages = inspectPages(document);
             List<StructureTag> structureTree = structureTreeExtractor.extract(document);
+            List<FigureInspection> figures = figureExtractor.extract(structureTree);
+            List<PageInspection> pages = inspectPages(document, figures);
 
             return new InspectionResult(
                     InspectionResult.SUPPORTED_SCHEMA_VERSION,
@@ -83,21 +95,35 @@ public final class PDFInspectionService {
         return new SourceDocument(fileName, sizeBytes, sha256);
     }
 
-    private static List<PageInspection> inspectPages(PDDocument document) throws IOException {
-        List<PageInspection> pages = new ArrayList<>(document.getNumberOfPages());
+    private static List<PageInspection> inspectPages(PDDocument document, List<FigureInspection> figures) throws IOException {
+        int pageCount = document.getNumberOfPages();
+        Map<Integer, List<FigureInspection>> figuresByPage = groupFiguresByPage(figures, pageCount);
+        List<PageInspection> pages = new ArrayList<>(pageCount);
 
-        for (int pageIndex = 0; pageIndex < document.getNumberOfPages(); pageIndex++) {
+        for (int pageIndex = 0; pageIndex < pageCount; pageIndex++) {
             int pageNumber = pageIndex + 1;
-            pages.add(inspectPage(document.getPage(pageIndex), pageNumber));
+            List<FigureInspection> pageFigures = figuresByPage.getOrDefault(pageNumber, List.of());
+            pages.add(inspectPage(document.getPage(pageIndex), pageNumber, pageFigures));
         }
 
         return List.copyOf(pages);
     }
 
-    private static PageInspection inspectPage(PDPage page, int pageNumber) throws IOException {
+    private static Map<Integer, List<FigureInspection>> groupFiguresByPage(List<FigureInspection> figures, int pageCount) throws IOException {
+        Objects.requireNonNull(figures, "figures must not be null");
+
+        for (FigureInspection figure : figures) {
+            Objects.requireNonNull(figure, "figures must not contain null elements");
+            if (figure.pageNumber() > pageCount) { throw new IOException("Figure " + figure.figureId() + " references page " + figure.pageNumber() + ", but the document page count is " + pageCount); }
+        }
+
+        return Map.copyOf(figures.stream().collect(Collectors.groupingBy(FigureInspection::pageNumber, Collectors.toUnmodifiableList())));
+    }
+
+    private static PageInspection inspectPage(PDPage page, int pageNumber, List<FigureInspection> figures) throws IOException {
         PDRectangle visibleBox = page.getCropBox();
 
-        if (visibleBox == null) throw new IOException("Page " + pageNumber + " does not define a usable crop box");
+        if (visibleBox == null) { throw new IOException("Page " + pageNumber + " does not define a usable crop box"); }
 
         double widthPoints = visibleBox.getWidth();
         double heightPoints = visibleBox.getHeight();
@@ -110,7 +136,7 @@ public final class PDFInspectionService {
         }
 
         try {
-            return new PageInspection(pageNumber, widthPoints, heightPoints, List.of());
+            return new PageInspection(pageNumber, widthPoints, heightPoints, figures);
         } 
         
         catch (IllegalArgumentException exception) {

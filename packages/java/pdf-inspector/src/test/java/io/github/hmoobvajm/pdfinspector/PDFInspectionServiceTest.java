@@ -1,6 +1,7 @@
 package io.github.hmoobvajm.pdfinspector;
 import io.github.hmoobvajm.pdfinspector.model.InspectionResult;
 import io.github.hmoobvajm.pdfinspector.model.StructureTag;
+import io.github.hmoobvajm.pdfinspector.model.FigureInspection;
 
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -220,5 +221,122 @@ class PDFInspectionServiceTest {
     @Test
     void rejectsNullStructureTreeExtractor() {
         assertThrows(NullPointerException.class, () -> new PDFInspectionService(null));
+    }
+
+    @Test
+    void attachesExtractedFigureToMatchingPage() throws IOException {
+        Path pdfPath = tempDirectory.resolve("figure-document.pdf");
+
+        try (PDDocument document = new PDDocument()) {
+            PDPage page = new PDPage(PDRectangle.LETTER);
+            document.addPage(page);
+
+            PDStructureTreeRoot root = new PDStructureTreeRoot();
+            document.getDocumentCatalog().setStructureTreeRoot(root);
+
+            PDStructureElement figure = new PDStructureElement("Figure", root);
+            figure.setAlternateDescription("Diagram showing the purchasing process");
+            figure.setActualText("Purchasing process diagram");
+            figure.setPage(page);
+
+            root.appendKid(figure);
+
+            document.save(pdfPath.toFile());
+        }
+
+        InspectionResult result = inspectionService.inspect(pdfPath);
+        FigureInspection figure = result.pages().getFirst().figures().getFirst();
+
+        assertAll(
+                () -> assertEquals(1, result.pages().size()),
+                () -> assertEquals(1, result.pages().getFirst().figures().size()),
+                () -> assertEquals("figure-1", figure.figureId()),
+                () -> assertEquals(1, figure.pageNumber()),
+                () -> assertEquals("Figure", figure.structureType()),
+                () -> assertEquals("Diagram showing the purchasing process", figure.alternateDescription()),
+                () -> assertEquals("Purchasing process diagram", figure.actualText()),
+                () -> assertTrue(figure.boundingBoxes().isEmpty())
+        );
+    }
+
+    @Test
+    void separatesFiguresAcrossPages() throws IOException {
+        Path pdfPath = tempDirectory.resolve("figures-on-separate-pages.pdf");
+
+        try (PDDocument document = new PDDocument()) {
+            PDPage firstPage = new PDPage(PDRectangle.LETTER);
+            PDPage secondPage = new PDPage(PDRectangle.LETTER);
+            document.addPage(firstPage);
+            document.addPage(secondPage);
+
+            PDStructureTreeRoot root = new PDStructureTreeRoot();
+            document.getDocumentCatalog().setStructureTreeRoot(root);
+
+            PDStructureElement firstFigure = new PDStructureElement("Figure", root);
+            firstFigure.setAlternateDescription("Figure on the first page");
+            firstFigure.setPage(firstPage);
+
+            PDStructureElement secondFigure = new PDStructureElement("Figure", root);
+            secondFigure.setAlternateDescription("Figure on the second page");
+            secondFigure.setPage(secondPage);
+
+            root.appendKid(firstFigure);
+            root.appendKid(secondFigure);
+
+            document.save(pdfPath.toFile());
+        }
+
+        InspectionResult result = inspectionService.inspect(pdfPath);
+
+        assertAll(
+                () -> assertEquals(2, result.pages().size()),
+                () -> assertEquals(1, result.pages().get(0).figures().size()),
+                () -> assertEquals(1, result.pages().get(1).figures().size()),
+                () -> assertEquals("Figure on the first page", result.pages().get(0).figures().getFirst().alternateDescription()),
+                () -> assertEquals("Figure on the second page", result.pages().get(1).figures().getFirst().alternateDescription()),
+                () -> assertEquals(1, result.pages().get(0).figures().getFirst().pageNumber()),
+                () -> assertEquals(2, result.pages().get(1).figures().getFirst().pageNumber())
+        );
+    }
+
+    @Test
+    void preservesFigureOrderWhenMultipleFiguresAppearOnSamePage() throws IOException {
+        Path pdfPath = tempDirectory.resolve("multiple-figures-one-page.pdf");
+
+        try (PDDocument document = new PDDocument()) {
+            PDPage page = new PDPage(PDRectangle.LETTER);
+            document.addPage(page);
+
+            PDStructureTreeRoot root = new PDStructureTreeRoot();
+            document.getDocumentCatalog().setStructureTreeRoot(root);
+
+            PDStructureElement firstFigure = new PDStructureElement("Figure", root);
+            firstFigure.setAlternateDescription("First figure");
+            firstFigure.setPage(page);
+
+            PDStructureElement secondFigure = new PDStructureElement("Figure", root);
+            secondFigure.setAlternateDescription("Second figure");
+            secondFigure.setPage(page);
+
+            root.appendKid(firstFigure);
+            root.appendKid(secondFigure);
+
+            document.save(pdfPath.toFile());
+        }
+
+        InspectionResult result = inspectionService.inspect(pdfPath);
+
+        assertAll(
+                () -> assertEquals(2, result.pages().getFirst().figures().size()),
+                () -> assertEquals("figure-1", result.pages().getFirst().figures().get(0).figureId()),
+                () -> assertEquals("First figure", result.pages().getFirst().figures().get(0).alternateDescription()),
+                () -> assertEquals("figure-2", result.pages().getFirst().figures().get(1).figureId()),
+                () -> assertEquals("Second figure", result.pages().getFirst().figures().get(1).alternateDescription())
+        );
+    }
+
+    @Test
+    void rejectsNullFigureExtractor() {
+        assertThrows(NullPointerException.class, () -> new PDFInspectionService(new StructureTreeExtractor(), null));
     }
 }
