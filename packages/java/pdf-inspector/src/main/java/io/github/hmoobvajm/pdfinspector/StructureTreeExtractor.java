@@ -1,5 +1,6 @@
 package io.github.hmoobvajm.pdfinspector;
 
+import io.github.hmoobvajm.pdfinspector.model.StructureContentReference;
 import io.github.hmoobvajm.pdfinspector.model.StructureTag;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -9,8 +10,10 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import org.apache.pdfbox.cos.COSDictionary;
+import org.apache.pdfbox.cos.COSInteger;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
+import org.apache.pdfbox.pdmodel.documentinterchange.logicalstructure.PDMarkedContentReference;
 import org.apache.pdfbox.pdmodel.documentinterchange.logicalstructure.PDStructureElement;
 import org.apache.pdfbox.pdmodel.documentinterchange.logicalstructure.PDStructureTreeRoot;
 
@@ -59,13 +62,40 @@ public final class StructureTreeExtractor {
         if (!activePath.add(structureDictionary)) { throw new IOException("Cycle detected in the PDF logical structure tree"); }
 
         try {
-            List<StructureTag> children = extractStructureChildren(document, structureElement.getKids(), activePath);
             Integer pageNumber = resolvePageNumber(document, structureElement.getPage());
+            List<StructureContentReference> contentReferences = extractContentReferences(document, structureElement.getKids(), pageNumber);
+            List<StructureTag> children = extractStructureChildren(document, structureElement.getKids(), activePath);
 
-            return new StructureTag(structureElement.getStructureType(), structureElement.getStandardStructureType(), structureElement.getTitle(), structureElement.getLanguage(), structureElement.getAlternateDescription(), structureElement.getActualText(), pageNumber, children);
+            return new StructureTag(structureElement.getStructureType(), structureElement.getStandardStructureType(), structureElement.getTitle(), structureElement.getLanguage(), structureElement.getAlternateDescription(), structureElement.getActualText(), pageNumber, children, contentReferences);
         }
 
         finally { activePath.remove(structureDictionary); }
+    }
+
+    private static List<StructureContentReference> extractContentReferences(PDDocument document, List<Object> kids, Integer structurePageNumber) {
+        List<StructureContentReference> contentReferences = new ArrayList<>();
+
+        for (Object kid : kids) {
+            if (kid instanceof PDMarkedContentReference markedContentReference) { addMarkedContentReference(document, contentReferences, markedContentReference, structurePageNumber); }
+
+            if (kid instanceof COSInteger markedContentIdentifier && structurePageNumber != null) {
+                contentReferences.add(new StructureContentReference(structurePageNumber, markedContentIdentifier.intValue()));
+            }
+        }
+
+        return List.copyOf(contentReferences);
+    }
+
+    private static void addMarkedContentReference(PDDocument document, List<StructureContentReference> contentReferences, PDMarkedContentReference markedContentReference, Integer fallbackPageNumber) {
+        Integer pageNumber = resolvePageNumber(document, markedContentReference.getPage());
+
+        if (pageNumber == null) {
+            pageNumber = fallbackPageNumber;
+        }
+
+        if (pageNumber == null) { return; }
+
+        contentReferences.add(new StructureContentReference(pageNumber, markedContentReference.getMCID()));
     }
 
     private static Integer resolvePageNumber(PDDocument document, PDPage page) {

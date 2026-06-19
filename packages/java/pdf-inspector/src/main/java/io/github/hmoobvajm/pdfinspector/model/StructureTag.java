@@ -17,17 +17,28 @@ import java.util.Objects;
  * @param actualText optional replacement text for structure elem
  * @param pageNumber optional one-based page association declared by structure elem
  * @param children immediate child structure elems in doc order
+ * @param contentReferences direct marked-content references associated with this structure elem
  */
-public record StructureTag(String structureType, String standardStructureType, String title, String language, String alternateDescription, String actualText, Integer pageNumber, List<StructureTag> children) {
+public record StructureTag(String structureType, String standardStructureType, String title, String language, String alternateDescription, String actualText, Integer pageNumber, List<StructureTag> children, List<StructureContentReference> contentReferences) {
     public StructureTag {
         if(pageNumber != null && pageNumber < 1 ) { throw new IllegalArgumentException("pageNumber must be greater than or equal to 1"); }
         
         Objects.requireNonNull(children, "children must not be null");
+        Objects.requireNonNull(contentReferences, "contentReferences must not be null");
 
         for(StructureTag child : children) {
             Objects.requireNonNull(child, "children must not contain null elements");
         }
 
+        for (StructureContentReference contentReference : contentReferences) {
+            Objects.requireNonNull(contentReference, "contentReferences must not contain null elements");
+        }
+
+        contentReferences = List.copyOf(contentReferences);
         children = List.copyOf(children);
+    }
+
+    public StructureTag(String structureType, String standardStructureType, String title, String language, String alternateDescription, String actualText, Integer pageNumber, List<StructureTag> children) {
+        this(structureType, standardStructureType, title, language, alternateDescription, actualText, pageNumber, children, List.of());
     }
 }

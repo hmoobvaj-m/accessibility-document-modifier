@@ -2,6 +2,8 @@ package io.github.hmoobvajm.pdfinspector;
 
 import io.github.hmoobvajm.pdfinspector.model.FigureInspection;
 import io.github.hmoobvajm.pdfinspector.model.StructureTag;
+import io.github.hmoobvajm.pdfinspector.model.StructureContentReference;
+
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -9,6 +11,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+
 
 class FigureExtractorTest {
 
@@ -124,6 +127,6 @@ class FigureExtractorTest {
     }
 
     private static StructureTag tag(String structureType, String standardStructureType, Integer pageNumber, String alternateDescription, String actualText, StructureTag... children) {
-        return new StructureTag(structureType, standardStructureType, null, null, alternateDescription, actualText, pageNumber, List.of(children));
+        return new StructureTag(structureType, standardStructureType, null, null, alternateDescription, actualText, pageNumber, List.of(children), List.<StructureContentReference>of());
     }
 }

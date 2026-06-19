@@ -114,7 +114,7 @@ public final class PDFInspectionService {
 
         for (FigureInspection figure : figures) {
             Objects.requireNonNull(figure, "figures must not contain null elements");
-            if (figure.pageNumber() > pageCount) { throw new IOException("Figure " + figure.figureId() + " references page " + figure.pageNumber() + ", but the document page count is " + pageCount); }
+            if (figure.pageNumber() > pageCount || figure.pageNumber() < 1) { throw new IOException("Figure " + figure.figureId() + " references page " + figure.pageNumber() + ", but the document page count is " + pageCount); }
         }
 
         return Map.copyOf(figures.stream().collect(Collectors.groupingBy(FigureInspection::pageNumber, Collectors.toUnmodifiableList())));
