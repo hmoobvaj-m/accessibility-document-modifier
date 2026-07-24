@@ -38,7 +38,7 @@
 
         <!-- Runtime dependencies -->
         <pdfbox.version>3.0.7</pdfbox.version>
-        <jackson.version>2.22.0</jackson.version>
+        <jackson.version>2.22.1</jackson.version>
 
         <!-- Test dependencies -->
         <junit.version>6.1.0</junit.version>
